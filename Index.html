@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>水分・排尿記録</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#f5f5f5;padding:10px;-webkit-text-size-adjust:100%}
+.container{max-width:500px;margin:0 auto}
+h1{text-align:center;color:#333;font-size:1.3em;margin-bottom:10px}
+.card{background:white;border-radius:12px;padding:15px;margin-bottom:15px;box-shadow:0 2px 8px rgba(0,0,0,0.1)}
+.card h2{font-size:1em;color:#666;margin-bottom:10px;border-bottom:1px solid #eee;padding-bottom:8px}
+.summary{display:flex;justify-content:space-around;text-align:center}
+.summary-item{padding:10px}
+.summary-item .value{font-size:1.8em;font-weight:bold}
+.summary-item .label{font-size:0.8em;color:#888}
+.intake .value{color:#2196F3}
+.output .value{color:#FF9800}
+.balance .value{color:#4CAF50}
+.input-group{margin-bottom:12px}
+.input-group label{display:block;font-size:0.85em;color:#666;margin-bottom:5px}
+.input-row{display:flex;gap:10px}
+.input-row select{flex:1;padding:12px;border:1px solid #ddd;border-radius:8px;font-size:16px;background:white;-webkit-appearance:menulist}
+.input-row input{flex:1;padding:12px;border:1px solid #ddd;border-radius:8px;font-size:16px}
+.btn{display:block;width:100%;padding:14px;border:none;border-radius:8px;font-size:1em;font-weight:bold;cursor:pointer;margin-top:10px;-webkit-appearance:none;-webkit-tap-highlight-color:transparent}
+.btn-intake{background:#2196F3;color:white}
+.btn-output{background:#FF9800;color:white}
+.btn-save{background:#4CAF50;color:white}
+.btn-load{background:#9C27B0;color:white}
+.btn-clear{background:#f44336;color:white;margin-top:20px}
+.history{max-height:200px;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.history-item{padding:10px 5px;border-bottom:1px solid #eee;font-size:0.9em;display:flex;justify-content:space-between;align-items:center}
+.history-text{flex:1}
+.tabs{display:flex;margin-bottom:15px}
+.tab{flex:1;padding:12px;text-align:center;background:#eee;border:none;font-size:0.9em;cursor:pointer;-webkit-appearance:none;-webkit-tap-highlight-color:transparent}
+.tab:first-child{border-radius:8px 0 0 8px}
+.tab:last-child{border-radius:0 8px 8px 0}
+.tab.active{background:#333;color:white}
+.date-selector{text-align:center;margin-bottom:10px}
+.date-selector input{padding:10px;border:1px solid #ddd;border-radius:8px;font-size:16px}
+.quick-btns{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+.quick-btn{padding:10px 14px;background:#e3f2fd;border:1px solid #90caf9;border-radius:20px;font-size:0.9em;cursor:pointer;-webkit-appearance:none;-webkit-tap-highlight-color:transparent}
+.period-info{text-align:center;font-size:0.75em;color:#888;margin-bottom:10px}
+.patient-section{background:#fff3e0;border-radius:8px;padding:10px;margin-bottom:15px;text-align:center}
+.patient-section input{padding:8px;border:1px solid #ddd;border-radius:8px;font-size:16px;width:150px;text-align:center}
+.patient-label{font-size:0.85em;color:#666;margin-right:10px}
+.data-section{display:flex;gap:10px;margin-bottom:15px}
+.data-section .btn{flex:1;margin-top:0}
+.del-btn{background:#ffebee;color:#f44336;border:1px solid #ffcdd2;border-radius:6px;padding:6px 12px;font-size:0.85em;cursor:pointer;-webkit-appearance:none;-webkit-tap-highlight-color:transparent;white-space:nowrap}
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:none;justify-content:center;align-items:center;z-index:1000}
+.modal-overlay.show{display:flex}
+.modal{background:white;border-radius:12px;padding:20px;margin:20px;max-width:300px;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,0.3)}
+.modal h3{margin-bottom:15px;color:#333}
+.modal p{margin-bottom:20px;color:#666;font-size:0.9em}
+.modal-btns{display:flex;gap:10px}
+.modal-btn{flex:1;padding:12px;border:none;border-radius:8px;font-size:1em;font-weight:bold;cursor:pointer;-webkit-appearance:none;-webkit-tap-highlight-color:transparent}
+.modal-btn-cancel{background:#eee;color:#333}
+.modal-btn-ok{background:#f44336;color:white}
+</style>
+</head>
+<body>
+<div class="container">
+<h1>💧 水分・排尿記録</h1>
+
+<div class="patient-section">
+<span class="patient-label">患者ID:</span>
+<input type="text" id="patientId" placeholder="ID入力">
+<button class="btn" style="width:auto;display:inline;padding:8px 15px;margin:5px;background:#ff9800;color:white" id="savePatientBtn">保存</button>
+</div>
+
+<div class="date-selector"><input type="date" id="currentDate"></div>
+<div class="period-info" id="periodInfo">-</div>
+
+<div class="card">
+<div class="summary">
+<div class="summary-item intake"><div class="value" id="totalIntake">0</div><div class="label">摂取量(ml)</div></div>
+<div class="summary-item output"><div class="value" id="totalOutput">0</div><div class="label">排尿量(ml)</div></div>
+<div class="summary-item balance"><div class="value" id="balance">0</div><div class="label">バランス</div></div>
+</div>
+</div>
+
+<div class="tabs">
+<button class="tab active" id="tabIntake">水分摂取</button>
+<button class="tab" id="tabOutput">排尿</button>
+</div>
+
+<div id="intakeTab" class="card">
+<h2>💧 水分摂取を記録</h2>
+<div class="input-group">
+<label>よく使う量（タップで入力）</label>
+<div class="quick-btns">
+<button class="quick-btn" id="qi100">100ml</button>
+<button class="quick-btn" id="qi150">150ml</button>
+<button class="quick-btn" id="qi200">200ml</button>
+<button class="quick-btn" id="qi300">300ml</button>
+<button class="quick-btn" id="qi400">400ml</button>
+<button class="quick-btn" id="qi500">500ml</button>
+</div>
+</div>
+<div class="input-group">
+<label>時刻と量</label>
+<div class="input-row">
+<select id="intakeTime"></select>
+<input type="number" id="intakeAmount" placeholder="ml" inputmode="numeric">
+</div>
+</div>
+<button class="btn btn-intake" id="addIntakeBtn">記録する</button>
+<h2 style="margin-top:15px" id="intakeHistoryTitle">📋 今日の記録</h2>
+<div class="history" id="intakeHistory"></div>
+</div>
+
+<div id="outputTab" class="card" style="display:none">
+<h2>🚽 排尿を記録</h2>
+<div class="input-group">
+<label>よく使う量（タップで入力）</label>
+<div class="quick-btns">
+<button class="quick-btn" id="qo100">100ml</button>
+<button class="quick-btn" id="qo150">150ml</button>
+<button class="quick-btn" id="qo200">200ml</button>
+<button class="quick-btn" id="qo300">300ml</button>
+<button class="quick-btn" id="qo400">400ml</button>
+<button class="quick-btn" id="qo500">500ml</button>
+</div>
+</div>
+<div class="input-group">
+<label>時刻と量</label>
+<div class="input-row">
+<select id="outputTime"></select>
+<input type="number" id="outputAmount" placeholder="ml" inputmode="numeric">
+</div>
+</div>
+<button class="btn btn-output" id="addOutputBtn">記録する</button>
+<h2 style="margin-top:15px" id="outputHistoryTitle">📋 今日の記録</h2>
+<div class="history" id="outputHistory"></div>
+</div>
+
+<div class="data-section">
+<button class="btn btn-save" id="saveBtn">💾 出力</button>
+<button class="btn btn-load" id="loadBtn">📂 読込</button>
+</div>
+<input type="file" id="fileInput" accept=".json" style="display:none">
+
+<button class="btn btn-clear" id="clearBtn">全データを削除</button>
+</div>
+
+<div id="modalOverlay" class="modal-overlay">
+<div class="modal">
+<h3 id="modalTitle">確認</h3>
+<p id="modalMessage">メッセージ</p>
+<div class="modal-btns">
+<button class="modal-btn modal-btn-cancel" id="modalCancel">キャンセル</button>
+<button class="modal-btn modal-btn-ok" id="modalOk">OK</button>
+</div>
+</div>
+</div>
+
+<script>
+(function(){
+var initialData = {};
+var data = {};
+var patientId = '';
+var modalCallback = null;
+
+function loadData() {
+  // 1. データの読み込み
+  try {
+    var s = localStorage.getItem('fluidData');
+    if (s) {
+      data = JSON.parse(s);
+    } else {
+      data = JSON.parse(JSON.stringify(initialData));
+    }
+  } catch (e) {
+    console.error("localStorage (fluidData) access failed:", e);
+    data = JSON.parse(JSON.stringify(initialData));
+  }
+
+  // 2. 患者IDの読み込み
+  try {
+    patientId = localStorage.getItem('patientId') || '';
+  } catch (e) {
+    console.error("localStorage (patientId) access failed:", e);
+    patientId = '';
+  }
+
+  // 3. 【最重要】要素が存在するかチェックしてから値を代入する
+  var patientIdInput = document.getElementById('patientId');
+  if (patientIdInput) {
+    patientIdInput.value = patientId;
+  } else {
+    console.warn("Element with id 'patientId' not found.");
+  }
+}
+
+function saveData(){
+try{localStorage.setItem('fluidData', JSON.stringify(data));}catch(e){}
+}
+
+function savePatient(){
+patientId = document.getElementById('patientId').value;
+try{localStorage.setItem('patientId', patientId);}catch(e){}
+showAlert('患者ID保存: ' + patientId);
+}
+
+function showAlert(msg){
+var overlay = document.getElementById('modalOverlay');
+document.getElementById('modalTitle').textContent = 'お知らせ';
+document.getElementById('modalMessage').textContent = msg;
+document.getElementById('modalCancel').style.display = 'none';
+document.getElementById('modalOk').textContent = 'OK';
+document.getElementById('modalOk').style.background = '#2196F3';
+modalCallback = null;
+overlay.classList.add('show');
+}
+
+function showConfirm(title, msg, callback){
+var overlay = document.getElementById('modalOverlay');
+document.getElementById('modalTitle').textContent = title;
+document.getElementById('modalMessage').textContent = msg;
+document.getElementById('modalCancel').style.display = 'block';
+document.getElementById('modalOk').textContent = '削除';
+document.getElementById('modalOk').style.background = '#f44336';
+modalCallback = callback;
+overlay.classList.add('show');
+}
+
+function hideModal(){
+document.getElementById('modalOverlay').classList.remove('show');
+modalCallback = null;
+}
+
+function getTodayDateKey(){
+var now = new Date();
+if(now.getHours() < 10){now.setDate(now.getDate() - 1);}
+var y = now.getFullYear();
+var m = ('0' + (now.getMonth()+1)).slice(-2);
+var d = ('0' + now.getDate()).slice(-2);
+return y + '-' + m + '-' + d;
+}
+
+function formatDateDisplay(dateStr){
+var d = new Date(dateStr);
+return (d.getMonth()+1) + '/' + d.getDate();
+}
+
+function setupTimeSelects(){
+var sel1 = document.getElementById('intakeTime');
+var sel2 = document.getElementById('outputTime');
+sel1.innerHTML = '';
+sel2.innerHTML = '';
+for(var h = 0; h < 24; h++){
+for(var mi = 0; mi < 60; mi += 15){
+var hh = ('0' + h).slice(-2);
+var mm = ('0' + mi).slice(-2);
+var t = hh + ':' + mm;
+var o1 = document.createElement('option');
+o1.value = t; o1.text = t;
+sel1.appendChild(o1);
+var o2 = document.createElement('option');
+o2.value = t; o2.text = t;
+sel2.appendChild(o2);
+}
+}
+setCurrentTime();
+}
+
+function setCurrentTime(){
+var now = new Date();
+var mi = Math.floor(now.getMinutes() / 15) * 15;
+var t = ('0' + now.getHours()).slice(-2) + ':' + ('0' + mi).slice(-2);
+document.getElementById('intakeTime').value = t;
+document.getElementById('outputTime').value = t;
+}
+
+function getNextDateStr(dateStr){
+var d = new Date(dateStr);
+d.setDate(d.getDate() + 1);
+var y = d.getFullYear();
+var m = ('0' + (d.getMonth()+1)).slice(-2);
+var dd = ('0' + d.getDate()).slice(-2);
+return y + '-' + m + '-' + dd;
+}
+
+function getRecordDateKey(timeStr){
+var sel = document.getElementById('currentDate').value;
+var h = parseInt(timeStr.split(':')[0], 10);
+if(h < 10){return getNextDateStr(sel);}
+return sel;
+}
+
+function getPeriodData(){
+var sel = document.getElementById('currentDate').value;
+var next = getNextDateStr(sel);
+var result = {intake:[], output:[]};
+var dayData = data[sel] || {intake:[], output:[]};
+var i, r, h;
+for(i = 0; i < dayData.intake.length; i++){
+r = dayData.intake[i];
+h = parseInt(r.time.split(':')[0], 10);
+if(h >= 10){result.intake.push({time:r.time, amount:r.amount, fromDate:sel, isNextDay:false});}
+}
+for(i = 0; i < dayData.output.length; i++){
+r = dayData.output[i];
+h = parseInt(r.time.split(':')[0], 10);
+if(h >= 10){result.output.push({time:r.time, amount:r.amount, fromDate:sel, isNextDay:false});}
+}
+var nextData = data[next] || {intake:[], output:[]};
+for(i = 0; i < nextData.intake.length; i++){
+r = nextData.intake[i];
+h = parseInt(r.time.split(':')[0], 10);
+if(h < 10){result.intake.push({time:r.time, amount:r.amount, fromDate:next, isNextDay:true});}
+}
+for(i = 0; i < nextData.output.length; i++){
+r = nextData.output[i];
+h = parseInt(r.time.split(':')[0], 10);
+if(h < 10){result.output.push({time:r.time, amount:r.amount, fromDate:next, isNextDay:true});}
+}
+result.intake.sort(sortFn);
+result.output.sort(sortFn);
+return result;
+}
+
+function sortFn(a, b){
+var hA = parseInt(a.time.split(':')[0], 10);
+var hB = parseInt(b.time.split(':')[0], 10);
+if(a.isNextDay) hA += 24;
+if(b.isNextDay) hB += 24;
+if(hA !== hB) return hA - hB;
+return a.time.localeCompare(b.time);
+}
+
+function updateDisplay(){
+var sel = document.getElementById('currentDate').value;
+var d = new Date(sel);
+var nd = new Date(sel);
+nd.setDate(nd.getDate() + 1);
+document.getElementById('periodInfo').textContent = (d.getMonth()+1) + '/' + d.getDate() + ' 10:00 〜 ' + (nd.getMonth()+1) + '/' + nd.getDate() + ' 9:59';
+
+var dateDisp = formatDateDisplay(sel);
+document.getElementById('intakeHistoryTitle').textContent = '📋 ' + dateDisp + 'の記録';
+document.getElementById('outputHistoryTitle').textContent = '📋 ' + dateDisp + 'の記録';
+
+var pd = getPeriodData();
+var ti = 0, to = 0, i;
+for(i = 0; i < pd.intake.length; i++){ti += pd.intake[i].amount;}
+for(i = 0; i < pd.output.length; i++){to += pd.output[i].amount;}
+document.getElementById('totalIntake').textContent = ti;
+document.getElementById('totalOutput').textContent = to;
+var bal = ti - to;
+document.getElementById('balance').textContent = (bal >= 0 ? '+' : '') + bal;
+
+var ihtml = '', cum = 0;
+for(i = 0; i < pd.intake.length; i++){
+var r = pd.intake[i];
+cum += r.amount;
+var disp = r.isNextDay ? r.time + ' (翌)' : r.time;
+ihtml += '<div class="history-item"><span class="history-text">' + disp + ' | ' + r.amount + 'ml (累計:' + cum + 'ml)</span><button class="del-btn" data-t="intake" data-d="' + r.fromDate + '" data-time="' + r.time + '">削除</button></div>';
+}
+document.getElementById('intakeHistory').innerHTML = ihtml || '<div style="color:#999;text-align:center;padding:20px">記録なし</div>';
+
+var ohtml = ''; cum = 0;
+for(i = 0; i < pd.output.length; i++){
+var r2 = pd.output[i];
+cum += r2.amount;
+var disp2 = r2.isNextDay ? r2.time + ' (翌)' : r2.time;
+ohtml += '<div class="history-item"><span class="history-text">' + disp2 + ' | ' + r2.amount + 'ml (累計:' + cum + 'ml)</span><button class="del-btn" data-t="output" data-d="' + r2.fromDate + '" data-time="' + r2.time + '">削除</button></div>';
+}
+document.getElementById('outputHistory').innerHTML = ohtml || '<div style="color:#999;text-align:center;padding:20px">記録なし</div>';
+
+attachDeleteHandlers();
+}
+
+function attachDeleteHandlers(){
+var btns = document.querySelectorAll('.del-btn');
+for(var i = 0; i < btns.length; i++){
+(function(btn){
+var handler = function(e){
+e.preventDefault();
+e.stopPropagation();
+var t = btn.getAttribute('data-t');
+var d = btn.getAttribute('data-d');
+var tm = btn.getAttribute('data-time');
+showConfirm('削除確認', tm + 'の記録を削除しますか？', function(){
+deleteRecord(t, d, tm);
+});
+};
+btn.addEventListener('click', handler, false);
+btn.addEventListener('touchend', handler, false);
+})(btns[i]);
+}
+}
+
+function deleteRecord(type, fromDate, timeStr){
+var arr = data[fromDate] ? data[fromDate][type] : null;
+if(!arr) return;
+for(var i = 0; i < arr.length; i++){
+if(arr[i].time === timeStr){
+arr.splice(i, 1);
+break;
+}
+}
+saveData();
+updateDisplay();
+}
+
+function addRecord(type){
+var time = document.getElementById(type + 'Time').value;
+var amt = parseInt(document.getElementById(type + 'Amount').value, 10);
+if(!time || !amt || amt <= 0){
+showAlert('時刻と量を入力してください');
+return;
+}
+var dk = getRecordDateKey(time);
+if(!data[dk]) data[dk] = {intake:[], output:[]};
+data[dk][type].push({time:time, amount:amt});
+data[dk][type].sort(function(a,b){return a.time.localeCompare(b.time);});
+saveData();
+document.getElementById(type + 'Amount').value = '';
+setCurrentTime();
+updateDisplay();
+showAlert('記録しました: ' + time + ' ' + amt + 'ml');
+}
+
+function showTab(type){
+document.getElementById('tabIntake').className = (type === 'intake') ? 'tab active' : 'tab';
+document.getElementById('tabOutput').className = (type === 'output') ? 'tab active' : 'tab';
+document.getElementById('intakeTab').style.display = (type === 'intake') ? 'block' : 'none';
+document.getElementById('outputTab').style.display = (type === 'output') ? 'block' : 'none';
+}
+
+function exportData(){
+var exp = {patientId:patientId, exportDate:new Date().toISOString(), records:data};
+var str = JSON.stringify(exp, null, 2);
+var fname = 'fluid_' + (patientId || 'data') + '_' + getTodayDateKey() + '.json';
+var blob = new Blob([str], {type:'application/json'});
+var url = URL.createObjectURL(blob);
+var a = document.createElement('a');
+a.href = url;
+a.download = fname;
+document.body.appendChild(a);
+a.click();
+document.body.removeChild(a);
+URL.revokeObjectURL(url);
+showAlert('ファイル出力完了');
+}
+
+function importData(){
+document.getElementById('fileInput').click();
+}
+
+function handleFile(e){
+var f = e.target.files[0];
+if(!f) return;
+var reader = new FileReader();
+reader.onload = function(ev){
+try{
+var obj = JSON.parse(ev.target.result);
+if(obj.records){
+data = obj.records;
+if(obj.patientId){
+patientId = obj.patientId;
+document.getElementById('patientId').value = patientId;
+try{localStorage.setItem('patientId', patientId);}catch(ex){}
+}
+}else{
+data = obj;
+}
+saveData();
+updateDisplay();
+showAlert('読込完了');
+}catch(ex){
+showAlert('読込エラー');
+}
+};
+reader.readAsText(f);
+e.target.value = '';
+}
+
+function clearAll(){
+showConfirm('全削除確認', '全てのデータを削除しますか？この操作は取り消せません。', function(){
+data = {};
+try{localStorage.removeItem('fluidData');}catch(e){}
+updateDisplay();
+showAlert('全データを削除しました');
+});
+}
+
+function init(){
+  // 1. データの読み込み
+  loadData();
+  
+  // 2. 日付要素の存在チェックと代入
+  var currentDateInput = document.getElementById('currentDate');
+  if (currentDateInput) {
+    currentDateInput.value = getTodayDateKey();
+    currentDateInput.addEventListener('change', updateDisplay, false);
+  }
+  
+  setupTimeSelects();
+
+  // --- ヘルパー関数：要素が存在するときだけイベントを設定する ---
+  function safeAddEvent(id, eventType, callback) {
+    var element = document.getElementById(id);
+    if (element) {
+      element.addEventListener(eventType, callback, false);
+    }
+  }
+
+  // 3. 各ボタンのイベント設定（safeAddEvent を使うことで存在しなくてもエラーにならない）
+  safeAddEvent('savePatientBtn', 'click', savePatient);
+  safeAddEvent('tabIntake', 'click', function(){showTab('intake');});
+  safeAddEvent('tabOutput', 'click', function(){showTab('output');});
+  safeAddEvent('addIntakeBtn', 'click', function(){addRecord('intake');});
+  safeAddEvent('addOutputBtn', 'click', function(){addRecord('output');});
+  safeAddEvent('saveBtn', 'click', exportData);
+  safeAddEvent('loadBtn', 'click', importData);
+  safeAddEvent('fileInput', 'change', handleFile);
+  safeAddEvent('clearBtn', 'click', clearAll);
+
+  safeAddEvent('modalCancel', 'click', hideModal);
+  safeAddEvent('modalOverlay', 'click', function(e){
+    if(e.target === this) hideModal();
+  });
+  
+  var modalOkBtn = document.getElementById('modalOk');
+  if (modalOkBtn) {
+    modalOkBtn.addEventListener('click', function(){
+      var cb = modalCallback;
+      hideModal();
+      if(cb) cb();
+    }, false);
+  }
+
+  // 水分用クイックボタン（存在するときだけ設定）
+  safeAddEvent('qi100', 'click', function(){ var el = document.getElementById('intakeAmount'); if(el) el.value=100; });
+  safeAddEvent('qi150', 'click', function(){ var el = document.getElementById('intakeAmount'); if(el) el.value=150; });
+  safeAddEvent('qi200', 'click', function(){ var el = document.getElementById('intakeAmount'); if(el) el.value=200; });
+  safeAddEvent('qi300', 'click', function(){ var el = document.getElementById('intakeAmount'); if(el) el.value=300; });
+  safeAddEvent('qi400', 'click', function(){ var el = document.getElementById('intakeAmount'); if(el) el.value=400; });
+  safeAddEvent('qi500', 'click', function(){ var el = document.getElementById('intakeAmount'); if(el) el.value=500; });
+
+  // 排尿用クイックボタン（存在するときだけ設定）
+  safeAddEvent('qo100', 'click', function(){ var el = document.getElementById('outputAmount'); if(el) el.value=100; });
+  safeAddEvent('qo150', 'click', function(){ var el = document.getElementById('outputAmount'); if(el) el.value=150; });
+  safeAddEvent('qo200', 'click', function(){ var el = document.getElementById('outputAmount'); if(el) el.value=200; });
+  safeAddEvent('qo300', 'click', function(){ var el = document.getElementById('outputAmount'); if(el) el.value=300; });
+  safeAddEvent('qo400', 'click', function(){ var el = document.getElementById('outputAmount'); if(el) el.value=400; });
+  safeAddEvent('qo500', 'click', function(){ var el = document.getElementById('outputAmount'); if(el) el.value=500; });
+
+  // 4. 最後に画面を更新
+  updateDisplay();
+}
+
+if(document.readyState === 'loading'){
+document.addEventListener('DOMContentLoaded', init);
+}else{
+init();
+}
+})();
+</script>
+</body>
+</html>
